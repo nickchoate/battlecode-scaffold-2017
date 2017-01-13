@@ -91,9 +91,9 @@ idea {
 if (!project.hasProperty("teamA")) {
     ext.teamA = "examplefuncsplayer"
 }
-if (!project.hasProperty("teamB")) {
-    ext.teamB = "examplefuncsplayer"
-}
+//if (!project.hasProperty("teamB")) {
+    ext.teamB = "nickchoate"
+//}
 if (!project.hasProperty("maps")) {
     ext.maps = "shrine"
 }
