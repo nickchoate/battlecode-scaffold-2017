@@ -96,13 +96,22 @@ public strictfp class RobotPlayer {
 
 	static void runGardener() throws GameActionException {
         System.out.println("I'm a gardener!");
-        int numSolidersCreated = 0;
-        int numLumberjackCreated = 0;
-        int lastCreated = 1; //0 = solider 1 = lumberjack
+        RobotType lastRobotCreated = null; //0 = solider 1 = lumberjack
         Team friendly = rc.getTeam();
         int randomUpperLimit = 7;
         Random rand = new Random(1321354986413516454L);
-        int thingsCreated =0;
+        int robotsCreated =0;
+        int lumberjacksCreated = 0;
+        int solidersCreated = 0;
+        int numRobotsToMake = 2;
+        int numTreesPlanted = 0;
+        
+        boolean johnnyAppleseed = true;
+        if(rand.nextInt()%2 == 0)
+        {
+        	johnnyAppleseed = false;
+        }
+        
         // The code you want your robot to perform every round should be in this loop
         while (true) {
 
@@ -117,36 +126,37 @@ public strictfp class RobotPlayer {
                 // Generate a random direction
                 Direction dir = randomDirection();
        
-
                 // Randomly attempt to build a soldier or lumberjack in this direction
                 boolean builtSomething = false;
-                if(rc.isBuildReady())
+                
+                //contigency to if I'm loosing robots fast, keep making them
+                if(rc.getRobotCount() < 10 && robotsCreated > numRobotsToMake)
                 {
-                	int randInt = rand.nextInt(1000);
-                    int mod = randInt%randomUpperLimit;
-                    //System.out.println(randInt + ":" + mod);
-	                if (rc.canBuildRobot(RobotType.SOLDIER, dir) && (mod==0 || mod==1 || mod==2 || mod==3 )) 
-	                {
-	                	System.out.println("Building solider.");
-	                    rc.buildRobot(RobotType.SOLDIER, dir);
-	                    thingsCreated++;
+                	robotsCreated = 0;
+                }
+                
+                if(rc.isBuildReady() && robotsCreated <= numRobotsToMake)
+                {
+
+                    RobotType robotToMake = robotTypeToMake(lastRobotCreated);
+                    
+                    if(rc.canBuildRobot(robotToMake, dir))
+                    {
+	                	System.out.println("Building " + robotToMake);
+	                    rc.buildRobot(robotToMake, dir);
+	                    robotsCreated++;
+	                    lastRobotCreated = robotToMake;
+	                    if(robotToMake == RobotType.SOLDIER)
+	                    {
+	                    	solidersCreated++;
+	                    }
+	                    else if(robotToMake == RobotType.LUMBERJACK)
+	                    {
+	                    	lumberjacksCreated++;
+	                    }
 	                    builtSomething=true;
+                    }
 	             
-	                } 
-	                else if (rc.canBuildRobot(RobotType.LUMBERJACK, dir) && (mod==4 || mod==5 || mod ==6)) 
-	                {
-	                	System.out.println("Building lumberjack.");
-	                    rc.buildRobot(RobotType.LUMBERJACK, dir);
-	                    thingsCreated++;
-	                    builtSomething=true;
-	                }
-	                /*else if (rc.canBuildRobot(RobotType.SCOUT, dir) )
-	                {
-	                	System.out.println("Building scout.");
-	                	rc.buildRobot(RobotType.SCOUT, dir);
-	                	thingsCreated++;
-	                	Clock.yield();
-	                }*/
                 }
                 
                 if(!builtSomething)
@@ -163,7 +173,7 @@ public strictfp class RobotPlayer {
                 				if(rc.canInteractWithTree(loc))
                 				{
                 					//interact with tree
-                					if(rc.canWater(tree.getID()) && Math.abs(tree.getHealth() - tree.getMaxHealth()) > 5 && tree.getTeam() != Team.NEUTRAL)
+                					if(rc.canWater(tree.getID()) && (tree.getHealth()/tree.getMaxHealth()) < .85 && tree.getTeam() != Team.NEUTRAL)
                 					{
                 						System.out.println("Watering tree");
                 						rc.water(loc);
@@ -178,7 +188,7 @@ public strictfp class RobotPlayer {
                 					else
                 					{
                 						Direction treeDir = randomDirection();
-                						TreeInfo[] nearbyTrees = rc.senseNearbyTrees(3, friendly);
+                						TreeInfo[] nearbyTrees = rc.senseNearbyTrees(5,friendly);
                 						if(rc.canPlantTree(treeDir) && nearbyTrees.length < 2)
                 						{
                 							System.out.println("Planting tree");
@@ -194,9 +204,16 @@ public strictfp class RobotPlayer {
                 				}
                 				else
                 				{
-                					MapLocation myLocation = rc.getLocation();
-                                	Direction toTree = myLocation.directionTo(loc);
-                                	tryMove(toTree);
+                					if(!johnnyAppleseed)
+                					{
+	                					MapLocation myLocation = rc.getLocation();
+	                                	Direction toTree = myLocation.directionTo(loc);
+	                                	tryMove(toTree);
+                					}
+                					else
+                					{
+                						tryMove(randomDirection());
+                					}
 
                 					break;
                 				}
@@ -218,6 +235,23 @@ public strictfp class RobotPlayer {
             }
         }
     }
+
+	private static RobotType robotTypeToMake(RobotType lastRobotCreated) {
+		RobotType robotToMake = RobotType.SOLDIER;
+		if(lastRobotCreated == null)
+		{
+			robotToMake = RobotType.SOLDIER;
+		}
+		else if(lastRobotCreated == RobotType.SOLDIER)
+		{
+			robotToMake = RobotType.LUMBERJACK;
+		}
+		else if(lastRobotCreated == RobotType.LUMBERJACK)
+		{
+			robotToMake = RobotType.SOLDIER;
+		}
+		return robotToMake;
+	}
 
     static void runSoldier() throws GameActionException {
         System.out.println("I'm an soldier!");
@@ -284,6 +318,10 @@ public strictfp class RobotPlayer {
                         	{
                         		if(rc.canChop(tree.getLocation()))
                         		{
+                        			if(tree.getContainedBullets() > 0)
+                        			{
+                        				rc.shake(tree.getID());
+                        			}
                         			System.out.println("Chopping tree");
                         			rc.chop(tree.getLocation());
                         			break;
