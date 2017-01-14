@@ -67,6 +67,14 @@ public strictfp class RobotPlayer {
                     rc.hireGardener(dir);
                     numGardenersCreated++;
                 }
+                else
+                {
+                	float totalBullets = rc.getTeamBullets();
+                	if(totalBullets > 1000)
+                	{
+                		rc.donate(100);
+                	}
+                }
 
                 // Move randomly
                 //tryMove(randomDirection());
@@ -169,11 +177,17 @@ public strictfp class RobotPlayer {
                 					}
                 					else
                 					{
-                						System.out.println("Planting tree");
                 						Direction treeDir = randomDirection();
-                						if(rc.canPlantTree(treeDir))
+                						TreeInfo[] nearbyTrees = rc.senseNearbyTrees(3, friendly);
+                						if(rc.canPlantTree(treeDir) && nearbyTrees.length < 2)
                 						{
+                							System.out.println("Planting tree");
                 							rc.plantTree(treeDir);
+                							break;
+                						}
+                						else
+                						{
+                							tryMove(randomDirection());
                 							break;
                 						}
                 					}
@@ -181,8 +195,8 @@ public strictfp class RobotPlayer {
                 				else
                 				{
                 					MapLocation myLocation = rc.getLocation();
-                                	Direction toEnemyTree = myLocation.directionTo(loc);
-                                	tryMove(toEnemyTree);
+                                	Direction toTree = myLocation.directionTo(loc);
+                                	tryMove(toTree);
 
                 					break;
                 				}
@@ -194,7 +208,7 @@ public strictfp class RobotPlayer {
                 // Move randomly
                 tryMove(randomDirection());
                
-
+                
                 // Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
                 Clock.yield();
 
@@ -252,17 +266,17 @@ public strictfp class RobotPlayer {
             try {
 
                 // See if there are any enemy robots within striking range (distance 1 from lumberjack's radius)
-                RobotInfo[] robots = rc.senseNearbyRobots(RobotType.LUMBERJACK.bodyRadius+GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy);
+                //RobotInfo[] robots = rc.senseNearbyRobots(RobotType.LUMBERJACK.bodyRadius+GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy);
 
-                if(robots.length > 0 && !rc.hasAttacked()) {
+                /*if(robots.length > 0 && !rc.hasAttacked()) {
                     // Use strike() to hit all nearby robots!
                     rc.strike();
-                } else {
+                } else {*/
                     // No close robots, so search for robots within sight radius
                     TreeInfo[] trees = rc.senseNearbyTrees();
 
                     // If there is a robot, move towards it
-                    if(trees.length > 0) {
+                    if(trees.length > 0 && !rc.hasAttacked()) {
                         MapLocation myLocation = rc.getLocation();
                         for(TreeInfo tree : trees)
                         {
@@ -271,23 +285,31 @@ public strictfp class RobotPlayer {
                         		if(rc.canChop(tree.getLocation()))
                         		{
                         			System.out.println("Chopping tree");
-                        			rc.chop(myLocation);
+                        			rc.chop(tree.getLocation());
+                        			break;
                         		}
                         		else
                         		{
                         			MapLocation treeLocation = tree.getLocation();
                                 	Direction toTree = myLocation.directionTo(treeLocation);
-                                	tryMove(toTree);
+                                	boolean success = tryMove(toTree);
+                                	if(!success)
+                                	{
+                                		tryMove(randomDirection());
+                                	}
+                                	break;
                         		}
                         	}
                         }
 
-                    } else {
-                        // Move Randomly
-                        tryMove(randomDirection());
                     }
-                }
+                    else if (!rc.hasAttacked() && rc.senseNearbyRobots(RobotType.LUMBERJACK.bodyRadius+GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy).length > 0)
+                    {
+                    	rc.strike();
+                    }
 
+               // }
+                    tryMove(randomDirection());
                 // Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
                 Clock.yield();
 
